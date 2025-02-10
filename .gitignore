@@ -1,0 +1,5 @@
+.venv
+build
+dist
+app.spec
+fuel_calculator.spec
