@@ -1,9 +1,20 @@
+import sys, os
 import tkinter as tk
 from tkinter import ttk
 import pandas as pd
 import numpy as np
-import json
+from PIL import Image, ImageTk
+import ctypes
 
+myappid = u'agregadosdiaz.fuelcalculator.app'
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+
+def resource_path(relative_path):
+    """ Retorna la ruta absoluta, compatible con PyInstaller """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 data = {
   "Medida_pulgadas": [
@@ -37,40 +48,29 @@ data = {
   ]
 }
 
+# Convertir data en un DataFrame una sola vez para mejorar rendimiento
+df_measure = pd.DataFrame({
+    "Medida pulgadas": data["Medida_pulgadas"],
+    "Volumen galones": data["Volumen_galones"]
+}).sort_values(by="Medida pulgadas").reset_index(drop=True)
 
-def calculating_available_gasoil(medida_pulgadas: float, df_measure: pd.DataFrame) -> float:
+
+def calculating_available_gasoil(medida_pulgadas: float) -> float:
     """Calcula el volumen en galones mediante interpolación lineal."""
-    # Ordenar por seguridad
-    df_measure = df_measure.sort_values(by="Medida pulgadas").reset_index(drop=True)
-    
-    # Convertir columnas a tipo numérico (para manejar posibles valores nulos)
-    df_measure["Medida pulgadas"] = pd.to_numeric(df_measure["Medida pulgadas"], errors="coerce")
-    df_measure["Volumen galones"] = pd.to_numeric(df_measure["Volumen galones"], errors="coerce")
-
-    # Filtrar valores válidos
-    df_measure = df_measure.dropna()
-
-    # Interpolación con numpy
-    volumen = np.interp(medida_pulgadas, df_measure["Medida pulgadas"], df_measure["Volumen galones"])
-    return volumen
+    return np.interp(medida_pulgadas, df_measure["Medida pulgadas"], df_measure["Volumen galones"])
 
 
-def converting_json_to_dataframe() -> pd.DataFrame:
-    # Convertir a DataFrame asegurando que las claves sean correctas
-    return pd.DataFrame({
-        "Medida pulgadas": data["Medida_pulgadas"],
-        "Volumen galones": data["Volumen_galones"]
-    })
-
-
-def calculate_gasoil(_result: tk.StringVar) -> None:
+def calculate_gasoil(*args) -> None:
     try:
-        measure = float(measure_input.get())
-        df_measure = converting_json_to_dataframe()
-        measure_estimate = calculating_available_gasoil(measure, df_measure)
-        _result.set(f"Volumen estimado: {round(measure_estimate)} galones")
+        measure = measure_entry.get()
+        if measure:  # Verificar si hay valor antes de calcular
+            measure = float(measure)
+            measure_estimate = calculating_available_gasoil(measure)
+            result_text.set(f"Gasoil estimado: {round(measure_estimate)} galones")
+        else:
+            result_text.set("")
     except ValueError:
-        _result.set("Ingrese un valor válido")
+        result_text.set("Ingrese un valor válido")
 
 
 # Crear ventana
@@ -82,27 +82,31 @@ window.configure(bg="#F6F6F6")
 
 # Contenedor principal centrado
 frame = tk.Frame(window, bg="#F6F6F6")
-frame.place(relx=0.5, rely=0.5, anchor="center")  # Centrado en la ventana
+frame.place(relx=0.5, rely=0.5, anchor="center")
+
+# Imagen del taskbar
+icon_path = resource_path("fuel_calculator_ico.ico")
+icon = Image.open(icon_path)
+icon = ImageTk.PhotoImage(icon)
+window.iconphoto(True, icon)
 
 # Título
-title_label = ttk.Label(frame, text="Calculadora de Gasoil", font=("Arial", 16, "bold"), background="#F6F6F6")
+title_label = ttk.Label(frame, text="Calculadora de Gasoil", font=("Helvetica", 16, "bold"), background="#F6F6F6")
 title_label.pack(pady=5)
 
 # Entrada de datos
-label_input = ttk.Label(frame, text="Ingrese la medida (pulgadas):", font=("Arial", 10), background="#F6F6F6")
+label_input = ttk.Label(frame, text="Ingrese la medida (pulgadas):", font=("Helvetica", 10), background="#F6F6F6")
 label_input.pack()
 
 result_text = tk.StringVar()
-measure_entry = tk.DoubleVar()
-measure_input = ttk.Entry(frame, textvariable=measure_entry, width=10, font=("Arial", 12))
+measure_entry = tk.StringVar()
+measure_entry.trace_add("write", calculate_gasoil)  # Detecta cambios en la entrada y actualiza resultado
+
+measure_input = ttk.Entry(frame, textvariable=measure_entry, width=10, font=("Helvetica", 12))
 measure_input.pack(pady=5)
 
-# Botón de calcular (más grande)
-button_calculate = ttk.Button(frame, text="Calcular", command=lambda: calculate_gasoil(result_text))
-button_calculate.pack(pady=10, ipadx=20, ipady=5)  # Aumenta tamaño
-
 # Mostrar resultado
-label_result = ttk.Label(frame, textvariable=result_text, font=("Arial", 12), foreground="blue", background="#F6F6F6")
+label_result = ttk.Label(frame, textvariable=result_text, font=("Helvetica", 12), foreground="blue", background="#F6F6F6")
 label_result.pack(pady=10)
 
 # Ejecutar la aplicación

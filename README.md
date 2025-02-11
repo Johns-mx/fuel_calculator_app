@@ -48,10 +48,10 @@ python fuel_calculator.py
 Para generar un ejecutable en Windows, utiliza el siguiente comando:
 
 ```sh
-pyinstaller --onefile --noconsole fuel_calculator.py
+pyinstaller --onedir --noconsole --icon=fuel_calculator_ico.ico --add-data="fuel_calculator_ico.ico;." --upx-dir="E:\upx" --clean --noconfirm fuel_calculator.py
 ```
 
-Esto generará el archivo `fuel_calculator.exe` en la carpeta `dist/`.
+Esto generará el archivo `fuel_calculator.exe` junto a `_internal` en la carpeta `dist/`.
 
 ## 📜 Dependencias
 
